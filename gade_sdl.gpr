@@ -1,4 +1,4 @@
-with "../libgade/libgade_core.gpr";
+with "../libgade/gade.gpr";
 with "../sdlada-2.1.8/build/gnat/sdlada.gpr";
 
 project Gade_SDL is
@@ -8,32 +8,21 @@ project Gade_SDL is
    for Source_Dirs use (".");
    for Main use ("Gade_Main.adb");
 
-   package Naming is
-      for Spec_Suffix ("ada") use ".ads";
-      for Body_Suffix ("ada") use ".adb";
-      for Separate_Suffix use ".adb";
-      for Casing use "MixedCase";
-      for Dot_Replacement use "-";
-   end Naming;
+   package Naming renames Gade.Naming;
 
    package Builder is
       for Executable ("gade_main.adb") use "gade";
-      for Default_Switches ("ada") use ("-g", "-C", "-s");
+      for Default_Switches ("Ada") use ("-g", "-C", "-s");
    end Builder;
 
    package Linker is
-      for Default_Switches ("ada") use ("-frameworkSDL2", "-g");
+      for Default_Switches ("Ada") use ("-frameworkSDL2", "-g");
    end Linker;
 
-   package Binder is
-   end Binder;
+   package Binder renames Gade.Binder;
 
-   package Compiler is
-      for Default_Switches ("ada") use ("-g", "-gnat12");
-   end Compiler;
+   package Compiler renames Gade.Compiler;
 
-   package Pretty_Printer is
-      for Default_Switches ("ada") use ("-cl3");
-   end Pretty_Printer;
+   package Pretty_Printer renames Gade.Pretty_Printer;
 
 end Gade_SDL;
