@@ -21,7 +21,6 @@ procedure Gade_Main is
    G        : Gade_Type;
    Event    : SDL.Events.Events.Events;
 
-
    Last_Frame_At  : Time;
    Frame_Duration : constant Duration := 1.0/60.0;
 

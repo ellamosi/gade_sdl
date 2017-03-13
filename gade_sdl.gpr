@@ -19,8 +19,6 @@ project Gade_SDL is
       for Default_Switches ("Ada") use ("-frameworkSDL2", "-g");
    end Linker;
 
-   package Binder renames Gade.Binder;
-
    package Compiler renames Gade.Compiler;
 
    package Pretty_Printer renames Gade.Pretty_Printer;
