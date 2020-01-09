@@ -1,9 +1,10 @@
+with Ada.Calendar;
+
 with SDL.Video.Windows;
 with SDL.Video.Textures;
 with SDL.Video.Renderers;
 
-with Gade.Video_Buffer; use Gade.Video_Buffer;
-with Gade.Interfaces;   use Gade.Interfaces;
+with Gade.Interfaces; use Gade.Interfaces;
 
 package Gade_Window is
 
@@ -21,11 +22,12 @@ package Gade_Window is
 
 private
 
-
    type Gade_Window_Type is record
       Window      : SDL.Video.Windows.Window;
       Texture     : SDL.Video.Textures.Texture;
       Renderer    : SDL.Video.Renderers.Renderer;
+      Timer       : Ada.Calendar.Time;
+      Frame_Count : Natural;
    end record;
 
 end Gade_Window;
