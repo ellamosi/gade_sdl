@@ -2,11 +2,13 @@ with Ada.Text_IO;          use Ada.Text_IO;
 with Ada.Exceptions;       use Ada.Exceptions;
 with Ada.Calendar;         use Ada.Calendar;
 with GNAT.Command_Line;    use GNAT.Command_Line;
+with Interfaces.C;         use Interfaces.C;
 
 with Gade.Interfaces;      use Gade.Interfaces;
 with Gade.Input_Reader;    use Gade.Input_Reader;
 
 with Gade_Window;          use Gade_Window;
+with Gade_Audio;           use Gade_Audio;
 
 with SDL;
 with SDL.Events.Events;
@@ -14,6 +16,8 @@ with SDL.Events.Keyboards; use SDL.Events.Keyboards;
 --
 --  with GNAT.Traceback;
 --  with GNAT.Traceback.Symbolic;
+
+with Soundio; use Soundio;
 
 procedure Gade_Main is
    use Ada;
@@ -27,6 +31,14 @@ procedure Gade_Main is
    G             : Gade_Type;
    Event         : SDL.Events.Events.Events;
    Unlimited_FPS : aliased Boolean := False;
+
+   --  Sound IO vars
+   Sound_IO             : constant access Soundio.SoundIo := Create;
+   Default_Device_Index : int;
+   Device               : access SoundIo_Device;
+   Out_Stream           : access SoundIo_Out_Stream;
+   Err                  : SoundIo_Error;
+   --  End Sound IO vars
 
    Last_Frame_At  : Time;
    pragma Warnings (Off, "static fixed-point value is not a multiple of Small");
@@ -102,12 +114,38 @@ begin
    Define_Switch (Config, Unlimited_FPS'Access, "-u", "Unlimited framerate");
    Getopt (Config);
 
+   --  Sound IO setup
+   Err := Connect (Sound_IO);
+   Put_Line (Err'Img);
+
+   Flush_Events (Sound_IO);
+   Default_Device_Index := Default_Output_Device_Index (Sound_IO);
+   Device := Get_Output_Device (Sound_IO, Default_Device_Index);
+   Out_Stream := Outstream_Create (Device);
+   Out_Stream.Format := Format_S32LE; --  Format_Float32NE; --  Format_S16LE;
+   Out_Stream.Write_Callback := Write_Callback'Access;
+
+   Put_Line ("Operning Stream");
+   Err := Outstream_Open (Out_Stream);
+   Put_Line (Err'Img);
+
+   Put_Line ("Starting Stream");
+   Err := Outstream_Start (Out_Stream);
+   Put_Line (Err'Img);
+   --  End Sound IO setup
+
    if SDL.Initialise then
       Buttons := (others => False);
       Create (Window);
+
+      Put_Line ("Initializing libgade");
       Create (G);
+      Put_Line ("Loading ROM");
       Load_ROM (G, ROM_Filename);
+      Put_Line ("Setting up input handling");
       Set_Input_Reader (G, Reader'Access);
+
+      Flush_Events (Sound_IO);
 
       Finished := False;
       while not Finished loop
@@ -125,6 +163,8 @@ begin
             end case;
          end loop;
          Next_Frame;
+
+         --  Wait_Events (IO);
          if not Unlimited_FPS then
             delay until Last_Frame_At + Frame_Duration;
          end if;

@@ -1,5 +1,6 @@
 with "../libgade/gade.gpr";
 with "../sdlada-2.1.8/build/gnat/sdlada.gpr";
+with "../ada-soundio/soundio.gpr";
 
 project Gade_SDL is
 
@@ -27,7 +28,7 @@ project Gade_SDL is
    end Builder;
 
    package Linker is
-      for Default_Switches ("ada") use Gade.Linker'Default_Switches ("Ada") & ("-F/Library/Frameworks", "-framework", "SDL2");
+      for Default_Switches ("ada") use Gade.Linker'Default_Switches ("Ada") & ("-L/usr/local/lib", "-F/Library/Frameworks", "-framework", "SDL2");
    end Linker;
 
    package Compiler renames Gade.Compiler;
