@@ -1,8 +1,10 @@
 with Ada.Text_IO;          use Ada.Text_IO;
-with Ada.Exceptions;       use Ada.Exceptions;
+--  with Ada.Exceptions;       use Ada.Exceptions;
 with Ada.Calendar;         use Ada.Calendar;
 with GNAT.Command_Line;    use GNAT.Command_Line;
 with Interfaces.C;         use Interfaces.C;
+with Interfaces.C.Strings;
+with Ada.Streams.Stream_IO;
 
 with Gade.Interfaces;      use Gade.Interfaces;
 with Gade.Input_Reader;    use Gade.Input_Reader;
@@ -26,11 +28,10 @@ procedure Gade_Main is
 
    Config : Command_Line_Configuration;
 
-   Finished      : Boolean;
-   Window        : Gade_Window_Type;
-   G             : Gade_Type;
-   Event         : SDL.Events.Events.Events;
-   Unlimited_FPS : aliased Boolean := False;
+   Finished       : Boolean;
+   Event          : SDL.Events.Events.Events;
+   Unlimited_FPS  : aliased Boolean := False;
+   Stream_Context : aliased Stream_Context_Type;
 
    --  Sound IO vars
    Sound_IO             : constant access Soundio.SoundIo := Create;
@@ -40,24 +41,26 @@ procedure Gade_Main is
    Err                  : SoundIo_Error;
    --  End Sound IO vars
 
+   Output_File : Ada.Streams.Stream_IO.File_Type;
+
    Last_Frame_At  : Time;
    pragma Warnings (Off, "static fixed-point value is not a multiple of Small");
    Frame_Duration : constant Duration := Duration (1.0 / 60.0);
    pragma Warnings (On, "static fixed-point value is not a multiple of Small");
 
-   procedure Next_Frame;
-
-   procedure Next_Frame is
-   begin
-      Next_Frame (Window, G);
-   exception
-      --  This seems to crash SDL if an exception is raised and captured at
-      --  lower level?!
-      when E :
-         others =>
-            Put_Line (Exception_Information (E));
-            Finished := True;
-   end Next_Frame;
+--     procedure Next_Frame;
+--
+--     procedure Next_Frame is
+--     begin
+--        Next_Frame (Stream_Context.Window, Stream_Context.G);
+--     exception
+--        --  This seems to crash SDL if an exception is raised and captured at
+--        --  lower level?!
+--        when E :
+--           others =>
+--              Put_Line (Exception_Information (E));
+--              Finished := True;
+--     end Next_Frame;
 
    type Input_Reader_Type is new Gade.Input_Reader.Input_Reader_Type with null record;
 
@@ -114,36 +117,51 @@ begin
    Define_Switch (Config, Unlimited_FPS'Access, "-u", "Unlimited framerate");
    Getopt (Config);
 
-   --  Sound IO setup
-   Err := Connect (Sound_IO);
-   Put_Line (Err'Img);
-
-   Flush_Events (Sound_IO);
-   Default_Device_Index := Default_Output_Device_Index (Sound_IO);
-   Device := Get_Output_Device (Sound_IO, Default_Device_Index);
-   Out_Stream := Outstream_Create (Device);
-   Out_Stream.Format := Format_S32LE; --  Format_Float32NE; --  Format_S16LE;
-   Out_Stream.Write_Callback := Write_Callback'Access;
-
-   Put_Line ("Operning Stream");
-   Err := Outstream_Open (Out_Stream);
-   Put_Line (Err'Img);
-
-   Put_Line ("Starting Stream");
-   Err := Outstream_Start (Out_Stream);
-   Put_Line (Err'Img);
-   --  End Sound IO setup
-
    if SDL.Initialise then
       Buttons := (others => False);
-      Create (Window);
+      Create (Stream_Context.Window);
 
       Put_Line ("Initializing libgade");
-      Create (G);
+      Create (Stream_Context.G);
       Put_Line ("Loading ROM");
-      Load_ROM (G, ROM_Filename);
+      Load_ROM (Stream_Context.G, ROM_Filename);
       Put_Line ("Setting up input handling");
-      Set_Input_Reader (G, Reader'Access);
+      Set_Input_Reader (Stream_Context.G, Reader'Access);
+
+      Ada.Streams.Stream_IO.Create
+        (Output_File, Ada.Streams.Stream_IO.Out_File, "gade_audio.raw");
+      Stream_Context.File_Stream := Ada.Streams.Stream_IO.Stream (Output_File);
+
+      --  Sound IO setup
+      Put_Line ("Setting up SoundIO connection");
+      Err := Connect (Sound_IO);
+      Put_Line (Err'Img);
+
+      Put_Line ("Flushing events...");
+      Flush_Events (Sound_IO);
+
+      Put_Line ("Getting default output device index");
+      Default_Device_Index := Default_Output_Device_Index (Sound_IO);
+      Put_Line ("Getting output device");
+      Device := Get_Output_Device (Sound_IO, Default_Device_Index);
+      Put_Line (To_Ada (Interfaces.C.Strings.Value (Device.name)));
+      Put_Line ("Creating output stream");
+      Out_Stream := Outstream_Create (Device);
+      Put_Line ("Setting up format");
+      Out_Stream.Format := Format_Float32NE; -- Format_S32LE; --  Format_S16LE;
+      --  Put_Line ("Setting up write callback");
+      Out_Stream.Write_Callback := Write_Callback'Access;
+      Put_Line ("Setting up stream context");
+      Out_Stream.User_Data := Stream_Context'Address;
+
+      Put_Line ("Operning Stream");
+      Err := Outstream_Open (Out_Stream);
+      Put_Line (Err'Img);
+
+      Put_Line ("Starting Stream");
+      Err := Outstream_Start (Out_Stream);
+      Put_Line (Err'Img);
+      --  End Sound IO setup
 
       Flush_Events (Sound_IO);
 
@@ -162,7 +180,9 @@ begin
                   null;
             end case;
          end loop;
-         Next_Frame;
+
+         --  Run_For ();
+         --  Next_Frame;
 
          --  Wait_Events (IO);
          if not Unlimited_FPS then
@@ -170,8 +190,10 @@ begin
          end if;
       end loop;
 
-      Finalize (Window);
-      Finalize (G);
+      --  TODO: Need to finalize stream first!
+
+      Finalize (Stream_Context.Window);
+      Finalize (Stream_Context.G);
       SDL.Finalise;
    end if;
 --  --  This seems to actually hide the exceptions, got to test it further

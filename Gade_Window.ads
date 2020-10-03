@@ -8,7 +8,13 @@ with Gade.Interfaces; use Gade.Interfaces;
 
 package Gade_Window is
 
-   type Gade_Window_Type is limited private;
+   type Gade_Window_Type is record
+      Window      : SDL.Video.Windows.Window;
+      Texture     : SDL.Video.Textures.Texture;
+      Renderer    : SDL.Video.Renderers.Renderer;
+      Timer       : Ada.Calendar.Time;
+      Frame_Count : Natural;
+   end record;
 
    procedure Create
      (Window : out Gade_Window_Type);
@@ -19,15 +25,5 @@ package Gade_Window is
 
    procedure Finalize
      (Window : in out Gade_Window_Type);
-
-private
-
-   type Gade_Window_Type is record
-      Window      : SDL.Video.Windows.Window;
-      Texture     : SDL.Video.Textures.Texture;
-      Renderer    : SDL.Video.Renderers.Renderer;
-      Timer       : Ada.Calendar.Time;
-      Frame_Count : Natural;
-   end record;
 
 end Gade_Window;
