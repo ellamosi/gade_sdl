@@ -3,29 +3,39 @@ with Soundio; use Soundio;
 
 with Gade_Window; use Gade_Window;
 with Gade.Interfaces; use Gade.Interfaces;
+with Gade.Audio_Buffer; use Gade.Audio_Buffer;
 
 with Ada.Unchecked_Conversion;
 with System;
 with Ada.Streams.Stream_IO;
 
-with Gade.Audio_Buffer; use Gade.Audio_Buffer;
+--  with Gade.Audio_Buffer; use Gade.Audio_Buffer;
 with Ada.Calendar; use Ada.Calendar;
 
 package Gade_Audio is
 
-   type Double_Buffer_Range is range 0 .. 1;
-   type Double_Audio_Buff is array (Double_Buffer_Range) of aliased Audio_Buffer_Type;
+--     type Indexed_Buffer is record
+--        Buffer    : aliased Audio_Buffer_Type;
+--        Start_Idx : Natural;
+--        End_Idx   : Natural;
+--     end record;
+--
+--     type Double_Buffer_Range is range 0 .. 1;
+--     type Double_Audio_Buff is array (Double_Buffer_Range) of Indexed_Buffer;
 
    type Stream_Context_Type is record
       Window           : Gade_Window_Type;
       G                : Gade_Type;
       Edge_Samples     : Natural := 0;
       Edge_State       : Boolean := False;
-      Audio_Buff       : Double_Audio_Buff;
-      Cur_Buff         : Double_Buffer_Range;
+      --  Double_Buffer    : Double_Audio_Buff;
+      --  Buffer           : Indexed_Buffer;
+      --  Cur_Buff         : Double_Buffer_Range;
       File_Stream      : Ada.Streams.Stream_IO.Stream_Access;
-      Rem_Samples : Natural := 0;
-      Rem_Index   : Natural := 0;
+      Acc_Left   : Integer := 0;
+      Acc_Right  : Integer := 0;
+      Acc_Count  : Integer := 0;
+      Audio_Buff : aliased Audio_Buffer_Type;
 
       FPS_Count : Natural := 0;
       FPS_Time : Time;

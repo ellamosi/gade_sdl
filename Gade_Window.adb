@@ -41,14 +41,17 @@ package body Gade_Window is
 
    procedure Next_Frame
      (Window : in out Gade_Window_Type;
-      G      : in out Gade_Type) is
+      G      : in out Gade_Type)
+   is
+      pragma Unreferenced (G);
+
       Pitch_Pointer : SDL.Video.Pixels.Pitch_Access.Pointer;
       Pixel_Pointer : SDL.Video.Pixels.ARGB_8888_Access.Pointer;
 
-      function ARGB_8888_Pointer_To_RGB32_Display_Buffer_Access is
-         new Ada.Unchecked_Conversion
-           (Source => SDL.Video.Pixels.ARGB_8888_Access.Pointer,
-            Target => RGB32_Display_Buffer_Access);
+--        function ARGB_8888_Pointer_To_RGB32_Display_Buffer_Access is
+--           new Ada.Unchecked_Conversion
+--             (Source => SDL.Video.Pixels.ARGB_8888_Access.Pointer,
+--              Target => RGB32_Display_Buffer_Access);
 
       Frames_Per_Second : Float;
       Now : Ada.Calendar.Time;
@@ -59,9 +62,9 @@ package body Gade_Window is
          Pixels  => Pixel_Pointer,
          Pitches => Pitch_Pointer);
 
-      Gade.Interfaces.Next_Frame
-        (G,
-         ARGB_8888_Pointer_To_RGB32_Display_Buffer_Access (Pixel_Pointer));
+--        Gade.Interfaces.Next_Frame
+--          (G,
+--           ARGB_8888_Pointer_To_RGB32_Display_Buffer_Access (Pixel_Pointer));
 
       SDL.Video.Textures.Unlock (Window.Texture);
 
