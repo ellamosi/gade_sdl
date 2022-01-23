@@ -29,10 +29,18 @@ package body Gade_Audio is
       Pitch_Pointer : SDL.Video.Pixels.Pitch_Access.Pointer;
       Pixel_Pointer : SDL.Video.Pixels.ARGB_8888_Access.Pointer;
 
+      pragma Warnings
+        (Off,
+         "possible aliasing problem for type ""RGB32_Display_Buffer_Access""");
+      --  Allow strict aliasing analysis optimizations as type conversion is for
+      --  a read only use.
       function ARGB_8888_Pointer_To_RGB32_Display_Buffer_Access is
          new Ada.Unchecked_Conversion
            (Source => SDL.Video.Pixels.ARGB_8888_Access.Pointer,
             Target => RGB32_Display_Buffer_Access);
+      pragma Warnings
+        (On,
+         "possible aliasing problem for type ""RGB32_Display_Buffer_Access""");
 
       Sample_Ratio : constant int := int (Float (Samples_Second) / Sample_Rate);
       Requested_Samples : Natural;
