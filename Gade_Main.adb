@@ -1,203 +1,128 @@
-with Ada.Text_IO;          use Ada.Text_IO;
---  with Ada.Exceptions;       use Ada.Exceptions;
-with Ada.Calendar;         use Ada.Calendar;
-with GNAT.Command_Line;    use GNAT.Command_Line;
-with Interfaces.C;         use Interfaces.C;
-with Interfaces.C.Strings;
-with Ada.Streams.Stream_IO;
+with Ada.Text_IO;
 
-with Gade.Interfaces;      use Gade.Interfaces;
-with Gade.Input_Reader;    use Gade.Input_Reader;
+with GNAT.Traceback;
+with GNAT.Traceback.Symbolic;
 
-with Gade_Window;          use Gade_Window;
-with Gade_Audio;           use Gade_Audio;
+with Gade.Interfaces; use Gade.Interfaces;
 
-with SDL;
-with SDL.Events.Events;
-with SDL.Events.Keyboards; use SDL.Events.Keyboards;
---
---  with GNAT.Traceback;
---  with GNAT.Traceback.Symbolic;
+with Audio.IO;     use Audio.IO;
+with Gade_Runner;  use Gade_Runner;
+with Gade_Window;  use Gade_Window;
+with Gade_Input;   use Gade_Input;
+with Command_Line; use Command_Line;
+with Frame_Timers;
 
-with Soundio; use Soundio;
+with SDL.Log; use SDL.Log;
 
 procedure Gade_Main is
-   use Ada;
    --  use GNAT.Traceback;
    --  use GNAT.Traceback.Symbolic;
 
-   Config : Command_Line_Configuration;
+   G        : Gade_Type;
+   Window   : Gade_Window_Type;
+   Audio_IO : Audio.IO.Instance;
+   Input    : aliased Gade_Input.Instance;
+   Runner   : Gade_Runner.Instance;
+   CLI      : Command_Line.Instance;
 
-   Finished       : Boolean;
-   Event          : SDL.Events.Events.Events;
-   Unlimited_FPS  : aliased Boolean := False;
-   Stream_Context : aliased Stream_Context_Type;
+   Limit_FPS : Boolean;
 
-   --  Sound IO vars
-   Sound_IO             : constant access Soundio.SoundIo := Create;
-   Default_Device_Index : int;
-   Device               : access SoundIo_Device;
-   Out_Stream           : access SoundIo_Out_Stream;
-   Err                  : SoundIo_Error;
-   --  End Sound IO vars
-
-   Output_File : Ada.Streams.Stream_IO.File_Type;
-
-   Last_Frame_At  : Time;
-   pragma Warnings (Off, "static fixed-point value is not a multiple of Small");
-   Frame_Duration : constant Duration := Duration (1.0 / 60.0);
-   pragma Warnings (On, "static fixed-point value is not a multiple of Small");
-
---     procedure Next_Frame;
---
---     procedure Next_Frame is
---     begin
---        Next_Frame (Stream_Context.Window, Stream_Context.G);
---     exception
---        --  This seems to crash SDL if an exception is raised and captured at
---        --  lower level?!
---        when E :
---           others =>
---              Put_Line (Exception_Information (E));
---              Finished := True;
---     end Next_Frame;
-
-   type Input_Reader_Type is new Gade.Input_Reader.Input_Reader_Type with null record;
-
-   Buttons : Input_State;
-
-   overriding function Read_Input (Reader : Input_Reader_Type) return Input_State;
-
-   overriding
-   function Read_Input (Reader : Input_Reader_Type) return Input_State is
-      pragma Unreferenced (Reader);
+   procedure Display_FPS (Value : Float);
+   procedure Display_FPS (Value : Float) is
    begin
-      return Buttons;
-   end Read_Input;
+      Window.Set_FPS (Value);
+   end Display_FPS;
 
-   Reader : aliased Input_Reader_Type;
+   package Window_FPS_Frame_Timers is new Frame_Timers (Display_FPS);
 
-   procedure Set_Button_Pressed  (Event : SDL.Events.Events.Events; Pressed : Boolean);
-   procedure Set_Button_Pressed
-     (Event : SDL.Events.Events.Events; Pressed : Boolean) is
+   Frame_Timer : Window_FPS_Frame_Timers.Frame_Timer;
+
+   procedure Wait_Loop;
+   procedure Wait_Loop is
    begin
-      case Event.Keyboard.Key_Sym.Scan_Code is
-         when SDL.Events.Keyboards.Scan_Code_Z =>
-            Buttons.A := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_X =>
-            Buttons.B := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Left =>
-            Buttons.LEFT := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Right =>
-            Buttons.RIGHT := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Up =>
-            Buttons.UP := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Down =>
-            Buttons.DOWN := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Return =>
-            Buttons.START := Pressed;
-         when SDL.Events.Keyboards.Scan_Code_Backspace =>
-            Buttons.SEL := Pressed;
-         when others => null;
-      end case;
-   end Set_Button_Pressed;
+      while not Input.Quit and not Input.File_Dropped loop
+         Input.Wait;
+      end loop;
+   end Wait_Loop;
 
-   function ROM_Filename return String;
-   function ROM_Filename return String is
-      Path : constant String := Get_Argument;
+   procedure Render_Loop (ROM_Filename : String);
+   procedure Render_Loop (ROM_Filename : String) is
    begin
-      if Path = "" then
-         Put_Line ("No ROM file path was provided!");
-         raise Program_Error;
-      end if;
-      return Path;
-   end ROM_Filename;
+      Put_Debug ("Loading ROM");
+      Load_ROM (G, ROM_Filename);
+      Reset (G);
 
-begin
-   Define_Switch (Config, Unlimited_FPS'Access, "-u", "Unlimited framerate");
-   Getopt (Config);
+      Frame_Timer.Reset;
 
-   if SDL.Initialise then
-      Buttons := (others => False);
-      Create (Stream_Context.Window);
+      while not Input.Quit and not Input.File_Dropped loop
+         Frame_Timer.Time_Frame;
 
-      Put_Line ("Initializing libgade");
-      Create (Stream_Context.G);
-      Put_Line ("Loading ROM");
-      Load_ROM (Stream_Context.G, ROM_Filename);
-      Put_Line ("Setting up input handling");
-      Set_Input_Reader (Stream_Context.G, Reader'Access);
+         Step (Runner, G, Window, Audio_IO);
 
-      Ada.Streams.Stream_IO.Create
-        (Output_File, Ada.Streams.Stream_IO.Out_File, "gade_audio.raw");
-      Stream_Context.File_Stream := Ada.Streams.Stream_IO.Stream (Output_File);
+         Input.Poll;
 
-      --  Sound IO setup
-      Put_Line ("Setting up SoundIO connection");
-      Err := Connect (Sound_IO);
-      Put_Line (Err'Img);
-
-      Put_Line ("Flushing events...");
-      Flush_Events (Sound_IO);
-
-      Put_Line ("Getting default output device index");
-      Default_Device_Index := Default_Output_Device_Index (Sound_IO);
-      Put_Line ("Getting output device");
-      Device := Get_Output_Device (Sound_IO, Default_Device_Index);
-      Put_Line (To_Ada (Interfaces.C.Strings.Value (Device.name)));
-      Put_Line ("Creating output stream");
-      Out_Stream := Outstream_Create (Device);
-      Put_Line ("Setting up format");
-      Out_Stream.Format := Format_Float32NE; -- Format_S32LE; --  Format_S16LE;
-      --  Put_Line ("Setting up write callback");
-      Out_Stream.Write_Callback := Write_Callback'Access;
-      Put_Line ("Setting up stream context");
-      Out_Stream.User_Data := Stream_Context'Address;
-
-      Put_Line ("Operning Stream");
-      Err := Outstream_Open (Out_Stream);
-      Put_Line (Err'Img);
-
-      Put_Line ("Starting Stream");
-      Err := Outstream_Start (Out_Stream);
-      Put_Line (Err'Img);
-      --  End Sound IO setup
-
-      Flush_Events (Sound_IO);
-
-      Finished := False;
-      while not Finished loop
-         Last_Frame_At := Clock;
-         while SDL.Events.Events.Poll (Event) loop
-            case Event.Common.Event_Type is
-               when SDL.Events.Keyboards.Key_Down =>
-                  Set_Button_Pressed (Event, True);
-               when SDL.Events.Keyboards.Key_Up =>
-                  Set_Button_Pressed (Event, False);
-               when SDL.Events.Quit =>
-                  Finished := True;
-               when others =>
-                  null;
-            end case;
-         end loop;
-
-         --  Run_For ();
-         --  Next_Frame;
-
-         --  Wait_Events (IO);
-         if not Unlimited_FPS then
-            delay until Last_Frame_At + Frame_Duration;
+         Limit_FPS := Limit_FPS or Input.Fast_Forward;
+         if Limit_FPS and not Input.Fast_Forward then
+            Frame_Timer.Delay_Until_Next;
          end if;
       end loop;
+   end Render_Loop;
+begin
+   if not SDL.Initialise then raise Program_Error; end if;
 
-      --  TODO: Need to finalize stream first!
+   Parse (CLI);
 
-      Finalize (Stream_Context.Window);
-      Finalize (Stream_Context.G);
-      SDL.Finalise;
-   end if;
---  --  This seems to actually hide the exceptions, got to test it further
+   SDL.Log.Set (Category => SDL.Log.Application, Priority => CLI.Log_Priority);
+
+   Limit_FPS := not CLI.Uncapped_FPS;
+
+   Create (Window);
+   Create (Audio_IO);
+   Create (Input);
+   Create (Runner);
+
+   Put_Debug ("Initializing libgade");
+   Create (G);
+   Put_Debug ("Setting up input handling");
+   Set_Input_Reader (G, Input'Access);
+
+   while not Input.Quit loop
+      if CLI.ROM_Filename /= "" then
+         Render_Loop (CLI.ROM_Filename);
+      elsif Input.File_Dropped then
+         declare
+            Filename : constant String := Input.Dropped_Filename;
+         begin
+            Input.Clear_Dropped_File;
+            Render_Loop (Filename);
+         end;
+      else
+         Wait_Loop;
+      end if;
+   end loop;
+
+   --  TODO: Reexamine, finalizes get called twice, but task keeps these in
+   --  context otherwise
+   Finalize (Window);
+   Finalize (Audio_IO);
+   --  Finalize (Input);
+   Finalize (G);
+   SDL.Finalise;
 --  exception
---     when E : others =>
---        Ada.Text_IO.Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
+--     when GNAT.Command_Line.Invalid_Switch =>
+--        Ada.Text_IO.Put_Line ("Invalid_Switch");
+--        Ada.Command_Line.Set_Exit_Status (1);
+--     when GNAT.Command_Line.Invalid_Parameter =>
+--        Ada.Text_IO.Put_Line ("Invalid_Parameter");
+--        Ada.Text_IO.Put_Line (Get_Argument (False, Command_Line_Parser));
+--        Ada.Text_IO.Put_Line (Parameter (Command_Line_Parser));
+--        Ada.Text_IO.Put_Line (Full_Switch (Command_Line_Parser));
+--        Ada.Command_Line.Set_Exit_Status (1);
+--     when GNAT.Command_Line.Exit_From_Command_Line =>
+--        --  Ada.Text_IO.Put_Line ("Exit_From_Command_Line");
+--        Ada.Command_Line.Set_Exit_Status (1);
+--  --  This seems to actually hide the exceptions, got to test it further
+exception
+   when E : others =>
+      Ada.Text_IO.Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
 end Gade_Main;

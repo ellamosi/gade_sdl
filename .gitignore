@@ -9,3 +9,6 @@ gade_sdl-loc.xml
 gnatinspect.db
 .#*.adb#
 .#*.ads#
+
+# OS files
+.DS_Store

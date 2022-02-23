@@ -1,36 +1,43 @@
 with Gade.Interfaces;   use Gade.Interfaces;
-with Gade.Audio_Buffer; use Gade.Audio_Buffer;
+with Gade_Window;       use Gade_Window;
+with Audio.IO;
 with Gade.Video_Buffer; use Gade.Video_Buffer;
-with SDL.Video.Textures;
 
-generic
-   type Video_Renderer is private;
-   with procedure Yield_Video_Frame
-     (Renderer : in out Video_Renderer;
-      Texture  : SDL.Video.Textures.Texture);
-   --  Relying on yield is a bad idea as it would cause unnecessary thread
-   --  blocking
+with SDL.Timers; use SDL.Timers;
+
 package Gade_Runner is
 
-   protected type Protected_Gade_Runner is
+   type Instance is limited private;
 
-      procedure Create;
+   procedure Create (Runner : out Instance);
 
-      procedure Load_ROM (File_Name : String);
+   procedure Step (Runner   : in out Instance;
+                   G        : in out Gade_Type;
+                   Window   : in out Gade_Window_Type;
+                   Audio_IO : in out Audio.IO.Instance);
 
-      entry Get_Audio_Samples
-        (Audio_Buffer      : out Audio_Buffer_Access;
-         Requested_Samples : in  Positive;
-         Actual_Samples    : out Positive);
+private
 
-      entry Get_Video_Frame (Renderer : in out Video_Renderer);
+   Max_Frame_Rendering_Rate : constant := 60;
+   Min_Frame_Duration : constant Milliseconds :=
+     1000 / Max_Frame_Rendering_Rate;
 
-   private
-      Audio_Samples_Ready    : Boolean := False;
-      Video_Frame_Ready      : Boolean := False;
-      Gade                   : Gade_Type;
-      Protected_Audio_Buffer : Audio_Buffer_Access;
-      Protected_Video_Buffer : RGB32_Display_Buffer_Access;
-   end Protected_Gade_Runner;
+   type Instance is record
+      Last_Frame_Rendered_Ticks : Milliseconds;
+   end record;
+
+   procedure Generate_And_Render
+     (G        : in out Gade_Type;
+      Window   : in out Gade_Window_Type;
+      Audio_IO : in out Audio.IO.Instance);
+
+   procedure Generate_And_Discard
+     (G        : in out Gade_Type;
+      Audio_IO : in out Audio.IO.Instance);
+
+   procedure Generate
+     (G            : in out Gade_Type;
+      Video_Buffer : RGB32_Display_Buffer_Access;
+      Audio_IO     : in out Audio.IO.Instance);
 
 end Gade_Runner;
