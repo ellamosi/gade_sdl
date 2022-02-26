@@ -1,12 +1,6 @@
 with Ada.Unchecked_Conversion;
 
-package body Bounded_Buffers is
-
-   function Element (Self : Bounded_Buffer; Index : Positive)
-                     return Element_Type is
-   begin
-      return Self.Data (Index);
-   end Element;
+package body Buffers.Bounded is
 
    procedure Clear (Self : out Bounded_Buffer) is
    begin
@@ -28,11 +22,19 @@ package body Bounded_Buffers is
       return Length (Self) = 0;
    end Is_Empty;
 
+   overriding
    procedure Append (Self : in out Bounded_Buffer; E : Element_Type) is
    begin
       Self.Slice (Upper) := Self.Slice (Upper) + 1;
       Self.Data (Self.Slice (Upper)) := E;
    end Append;
+
+   function Element (Self : Bounded_Buffer; Index : Positive)
+                     return Element_Type
+   is
+   begin
+      return Self.Data (Index);
+   end Element;
 
    function Data_Access (Self : in out Bounded_Buffer)
                          return Data_Container_Access
@@ -87,10 +89,31 @@ package body Bounded_Buffers is
    end Iterate;
 
    function Constant_Reference (Container : aliased in Bounded_Buffer;
+                                Index     : Positive)
+                                return Constant_Reference_Type is
+   begin
+      return (Element => Container.Data (Index)'Access);
+   end Constant_Reference;
+
+   function Constant_Reference (Container : aliased in Bounded_Buffer;
                                 Position  : Cursor)
                                 return Constant_Reference_Type is
    begin
-      return (Element => Container.Data (Position.Position)'Access);
+      return Constant_Reference (Container, Position.Position);
    end Constant_Reference;
 
-end Bounded_Buffers;
+   function Reference (Container : aliased in out Bounded_Buffer;
+                       Index     : Positive)
+                       return Reference_Type is
+   begin
+      return (Element => Container.Data (Index)'Access);
+   end Reference;
+
+   function Reference (Container : aliased in out Bounded_Buffer;
+                       Position  : in Cursor)
+                       return Reference_Type is
+   begin
+      return Reference (Container, Position.Position);
+   end Reference;
+
+end Buffers.Bounded;

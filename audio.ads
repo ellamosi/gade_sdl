@@ -1,12 +1,8 @@
-with Bounded_Buffers;
+with Buffers.Bounded;
 
 with Gade.Audio_Buffer; use Gade.Audio_Buffer;
 
-package Audio is
-
-   --  TODO: Make all of this private when Gade_Audio is turned into a child package
-
-private
+package Audio is private
 
    type Float_Frame is record
       Left, Right : Float;
@@ -21,8 +17,8 @@ private
 
    function To_Float (S : Sample) return Float with Inline;
 
-   package Sample_Buffers is new Bounded_Buffers (Gade.Audio_Buffer.Stereo_Sample);
-   package Float_Buffers is new Bounded_Buffers (Float_Frame);
+   package Sample_Buffers is new Buffers.Bounded (Gade.Audio_Buffer.Stereo_Sample);
+   package Float_Buffers is new Buffers.Bounded (Float_Frame);
 
    subtype Video_Frame_Sample_Buffer is
      Sample_Buffers.Bounded_Buffer (Gade.Audio_Buffer.Maximum_Samples);

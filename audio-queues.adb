@@ -1,7 +1,7 @@
 package body Audio.Queues is
 
    protected body Buffer_Queue is
-      procedure Queue (V : Bounded_Buffer_Access) is
+      procedure Queue (V : not null Bounded_Buffer_Access) is
          Pos : Container_Range;
       begin
          if Count < Container_Range'Range_Length then
@@ -11,7 +11,7 @@ package body Audio.Queues is
          end if;
       end Queue;
 
-      entry Dequeue (V : out Bounded_Buffer_Access) when Count > 0 is
+      entry Dequeue (V : out not null Bounded_Buffer_Access) when Count > 0 is
       begin
          V := Container (First);
          First := First + 1;

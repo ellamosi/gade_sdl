@@ -11,8 +11,8 @@ private package Audio.Queues is
    type Buffer_Queue_Container is array (Container_Range) of Bounded_Buffer_Access;
 
    protected type Buffer_Queue is
-      procedure Queue (V : Bounded_Buffer_Access);
-      entry Dequeue (V : out Bounded_Buffer_Access);
+      procedure Queue (V : not null Bounded_Buffer_Access);
+      entry Dequeue (V : out not null Bounded_Buffer_Access);
       procedure Dequeue_No_Block (V : out Bounded_Buffer_Access);
    private
       Container : Buffer_Queue_Container;

@@ -3,20 +3,20 @@ with System;
 
 generic
    type Element_Type is private;
-package Bounded_Buffers is
+package Buffers.Bounded is
+
+   package Appendable_Buffers is new Buffers.Appendable_Buffers (Element_Type);
+   use Appendable_Buffers;
 
    type Data_Container is array (Positive range <>) of aliased Element_Type;
 
    type Data_Container_Access is access all Data_Container;
 
-   type Bounded_Buffer (Size : Positive) is tagged private with
-     Default_Iterator => Iterate,
-     Iterator_Element => Element_Type,
-     Constant_Indexing => Constant_Reference;
-
-   --  TODO: Find out how to use this to access an element by index using parentheses
-   function Element (Self : Bounded_Buffer; Index : Positive)
-                     return Element_Type;
+   type Bounded_Buffer (Size : Positive) is new Appendable with private with
+     Default_Iterator  => Iterate,
+     Iterator_Element  => Element_Type,
+     Constant_Indexing => Constant_Reference,
+     Variable_Indexing => Reference;
 
    procedure Clear (Self : out Bounded_Buffer)
      with Inline;
@@ -30,7 +30,12 @@ package Bounded_Buffers is
    function Is_Empty (Self : Bounded_Buffer) return Boolean
      with Inline;
 
+   overriding
    procedure Append (Self : in out Bounded_Buffer; E : Element_Type)
+     with Inline;
+
+   function Element (Self : Bounded_Buffer; Index : Positive)
+                     return Element_Type
      with Inline;
 
    function Data_Access (Self : in out Bounded_Buffer)
@@ -59,9 +64,25 @@ package Bounded_Buffers is
      (Element : not null access constant Element_Type) is private
      with Implicit_Dereference => Element;
 
+   type Reference_Type
+     (Element : not null access Element_Type) is private
+     with Implicit_Dereference => Element;
+
+   function Constant_Reference (Container : aliased in Bounded_Buffer;
+                                Index     : Positive)
+                                return Constant_Reference_Type;
+
    function Constant_Reference (Container : aliased in Bounded_Buffer;
                                 Position  : Cursor)
                                 return Constant_Reference_Type;
+
+   function Reference (Container : aliased in out Bounded_Buffer;
+                       Index     : in Positive)
+                       return Reference_Type;
+
+   function Reference (Container : aliased in out Bounded_Buffer;
+                       Position  : in Cursor)
+                       return Reference_Type;
 
 private
 
@@ -72,14 +93,14 @@ private
 
    type Bounds is array (Bound) of Natural;
 
-   type Bounded_Buffer (Size : Positive) is tagged record
+   type Bounded_Buffer (Size : Positive) is new Appendable with record
       Data  : aliased Data_Container (1 .. Size);
       Slice : aliased Bounds := (1, 0);
    end record;
 
    type Cursor is record
       Last     : Positive;
-      Position : Positive;
+      Position : Positive; --  TODO: Rename to Index
    end record;
 
    type Iterator is new Iterators.Forward_Iterator with record
@@ -90,4 +111,7 @@ private
    type Constant_Reference_Type
      (Element : not null access constant Element_Type) is null record;
 
-end Bounded_Buffers;
+   type Reference_Type
+     (Element : not null access Element_Type) is null record;
+
+end Buffers.Bounded;

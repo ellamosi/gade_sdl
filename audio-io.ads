@@ -10,6 +10,7 @@ package Audio.IO is
 
    type Instance is new Ada.Finalization.Limited_Controlled with private;
 
+   --  TODO: Rename to Self
    procedure Create (Audio : aliased out Instance);
 
    generic
@@ -26,7 +27,6 @@ private
    Channel_Count : constant := 2;
 
    Max_Delta           : constant Float := 0.005;
-   --  Input_Frequency     : constant Float := Float (Samples_Second / 4);
    High_Fill_Threshold : constant Float := 4.0; --  Clear SDL queue if surpassed
 
    type Audio_Access is access all Instance;
@@ -44,6 +44,27 @@ private
    type Frame_Buffer_Array is array (1 .. Frame_Buffer_Count)
      of aliased Video_Frame_Sample_Buffer;
 
+   type Float_Buffer_Access is access all Float_Buffers.Bounded_Buffer (1_024);
+
+   type Support_User_Data is new Audio_Devices.User_Data with record
+      Audio       : Audio_Access;
+      --  Held_Buffer : Bounded_Buffer_Access;
+      Held_Index  : Positive;
+
+      Held_Buffer : Float_Buffer_Access;
+      Resampled   : aliased Float_Buffers.Bounded_Buffer (1_024);
+      Silence     : aliased Float_Buffers.Bounded_Buffer (1_024);
+
+      Counter : Integer := 0;
+      State   : Boolean := True;
+   end record;
+
+   procedure Callback
+     (User   : in Audio_Devices.User_Data_Access;
+      Buffer : out Float_Buffers.Data_Container);
+
+   type Support_User_Data_Access is access all Support_User_Data;
+
    type Instance is new Ada.Finalization.Limited_Controlled with record
       Device              : Audio_Devices.Device;
       Spec                : Obtained_Spec;
@@ -55,8 +76,10 @@ private
       Dummy_Buffer  : aliased Video_Frame_Sample_Buffer;
       Frame_Buffers : Frame_Buffer_Array;
 
-      Free_Queue   : Buffer_Queue;
-      Busy_Queue   : Buffer_Queue;
+      Free_Queue : Buffer_Queue;
+      Busy_Queue : Buffer_Queue;
+
+      User_Data : aliased Support_User_Data;
    end record;
 
    Sample_Format : constant SDL.Audio.Sample_Formats.Sample_Format :=
