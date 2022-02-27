@@ -23,6 +23,7 @@ package body Gade_Window is
       SDL.Video.Renderers.Makers.Create
         (Rend   => Window.Renderer,
          Window => Window.Window,
+         --  TODO: use default driver if Cocoa is not present (for better multiplatform support)
          Driver => 1, -- Cocoa. Using the default driver results in blurry scaling
          Flags  => SDL.Video.Renderers.Accelerated);
 

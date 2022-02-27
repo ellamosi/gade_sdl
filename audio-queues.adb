@@ -28,6 +28,11 @@ package body Audio.Queues is
             V := null;
          end if;
       end Dequeue_No_Block;
+
+      function Peek return Bounded_Buffer_Access is
+      begin
+         return (if Count > 0 then Container (First) else null);
+      end Peek;
    end Buffer_Queue;
 
 end Audio.Queues;

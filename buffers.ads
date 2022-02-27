@@ -1,5 +1,7 @@
 package Buffers is
 
+   --  TODO: non integer based Count_Type rather than Positive
+
    generic
       type Element_Type;
    package Appendable_Buffers is

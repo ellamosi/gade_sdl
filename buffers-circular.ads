@@ -1,27 +1,30 @@
 generic
    type Element_Type is private;
+   with package Appendables is new Appendable_Buffers (Element_Type);
 package Buffers.Circular is
-
-   package Appendable_Buffers is new Buffers.Appendable_Buffers (Element_Type);
-   use Appendable_Buffers;
+   use Appendables;
 
    type Circular_Buffer (Size : Positive) is new Appendable with private;
 
    procedure Push (Self : in out Circular_Buffer; E : Element_Type)
-     with Inline;
+     with
+       Pre  => Length (Self) <= Self.Size - 1 or else raise Constraint_Error,
+       Post => Length (Self)'Old + 1 = Length (Self) and then Self.Size >= Length (Self);
 
    overriding
    procedure Append (Self : in out Circular_Buffer; E : Element_Type) renames Push;
 
    procedure Pop (Self : in out Circular_Buffer; E : out Element_Type)
-     with Inline;
-
-   --  procedure Commit_Reads (Self : in out Circular_Buffer);
+     with
+       Post => Length (Self)'Old - 1 = Length (Self);
 
    function Length (Self : Circular_Buffer) return Natural
      with Inline;
 
    function Is_Empty (Self : Circular_Buffer) return Boolean
+     with Inline;
+
+   function Available (Self : Circular_Buffer) return Natural
      with Inline;
 
 private
@@ -36,10 +39,6 @@ private
       Read_Index  : Positive := 1;
       Write_Index : Positive := 1;
       Count       : Natural  := 0;
-
-      --  Could be some sort of cursor type?
-      Uncommited_Write_Index : Positive;
-      Uncommited_Read_Index  : Positive;
    end record;
 
 end Buffers.Circular;

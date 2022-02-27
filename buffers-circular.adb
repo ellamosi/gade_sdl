@@ -26,4 +26,9 @@ package body Buffers.Circular is
       return Self.Length = 0;
    end Is_Empty;
 
+   function Available (Self : Circular_Buffer) return Natural is
+   begin
+      return Self.Size - Self.Length;
+   end Available;
+
 end Buffers.Circular;

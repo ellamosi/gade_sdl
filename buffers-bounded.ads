@@ -3,20 +3,22 @@ with System;
 
 generic
    type Element_Type is private;
+   with package Appendables is new Appendable_Buffers (Element_Type);
 package Buffers.Bounded is
-
-   package Appendable_Buffers is new Buffers.Appendable_Buffers (Element_Type);
-   use Appendable_Buffers;
+   use Appendables;
 
    type Data_Container is array (Positive range <>) of aliased Element_Type;
 
    type Data_Container_Access is access all Data_Container;
 
+   --  TODO: Rename Size to Capacity in containers?
    type Bounded_Buffer (Size : Positive) is new Appendable with private with
      Default_Iterator  => Iterate,
      Iterator_Element  => Element_Type,
      Constant_Indexing => Constant_Reference,
-     Variable_Indexing => Reference;
+     Variable_Indexing => Reference,
+     Default_Initial_Condition =>
+       Length (Bounded_Buffer) = 0;
 
    procedure Clear (Self : out Bounded_Buffer)
      with Inline;
@@ -32,7 +34,10 @@ package Buffers.Bounded is
 
    overriding
    procedure Append (Self : in out Bounded_Buffer; E : Element_Type)
-     with Inline;
+     with
+       Pre  => Length (Self) <= Self.Size - 1 or else raise Constraint_Error,
+       Post => Length (Self)'Old + 1 = Length (Self) and then Self.Size >= Length (Self),
+       Inline;
 
    function Element (Self : Bounded_Buffer; Index : Positive)
                      return Element_Type

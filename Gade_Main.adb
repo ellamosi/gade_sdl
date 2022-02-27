@@ -14,6 +14,8 @@ with Frame_Timers;
 
 with SDL.Log; use SDL.Log;
 
+with Ada.Exceptions; use Ada.Exceptions;
+
 procedure Gade_Main is
    --  use GNAT.Traceback;
    --  use GNAT.Traceback.Symbolic;
@@ -104,7 +106,7 @@ begin
    --  TODO: Reexamine, finalizes get called twice, but task keeps these in
    --  context otherwise
    Finalize (Window);
-   Finalize (Audio_IO);
+   --  Finalize (Audio_IO);
    --  Finalize (Input);
    Finalize (G);
    SDL.Finalise;
@@ -124,5 +126,7 @@ begin
 --  --  This seems to actually hide the exceptions, got to test it further
 exception
    when E : others =>
+      Ada.Text_IO.Put_Line ("Main Thread Exception");
+      Ada.Text_IO.Put_Line (Exception_Message (E));
       Ada.Text_IO.Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
 end Gade_Main;

@@ -10,7 +10,7 @@ private package Audio.Resamplers is
    procedure Resample
      (Self   : in out Resampler;
       Input  : Sample_Buffers.Bounded_Buffer;
-      Output : in out Float_Buffers.Appendable_Buffers.Appendable'Class);
+      Output : in out Float_Appendables.Appendable'Class);
 
    procedure Set_Input_Frequency
      (Self            : in out Resampler;
@@ -31,6 +31,6 @@ private
    procedure Resample
      (Self   : in out Resampler;
       Frame  : Stereo_Sample;
-      Output : in out Float_Buffers.Appendable_Buffers.Appendable'Class);
+      Output : in out Float_Appendables.Appendable'Class);
 
 end Audio.Resamplers;

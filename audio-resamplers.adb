@@ -16,7 +16,7 @@ package body Audio.Resamplers is
    procedure Resample
      (Self   : in out Resampler;
       Input  : Sample_Buffers.Bounded_Buffer;
-      Output : in out Float_Buffers.Appendable_Buffers.Appendable'Class)
+      Output : in out Float_Appendables.Appendable'Class)
    is
    begin
       --  Output.Clear;
@@ -28,7 +28,7 @@ package body Audio.Resamplers is
    procedure Resample
      (Self   : in out Resampler;
       Frame  : Stereo_Sample;
-      Output : in out Float_Buffers.Appendable_Buffers.Appendable'Class)
+      Output : in out Float_Appendables.Appendable'Class)
    is
       Mu         : Float renames Self.Fraction;
       F          : Frame_History renames Self.History;
